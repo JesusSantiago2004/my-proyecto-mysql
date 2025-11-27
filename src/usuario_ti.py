@@ -73,14 +73,28 @@ class UsuarioTI:
             r = cur.fetchone()
             if not r:
                 return None
+
             stored_hash = r[4]
-            if stored_hash is None or hash_password(password) != stored_hash:
-                return None
-            if r[3] == 'admin':
-                return AdministradorTI(r[0], r[1], r[2], r[3])
-            elif r[3] == 'coordinador':
-                return CoordinadorTI(r[0], r[1], r[2], r[3])
-            return cls(r[0], r[1], r[2], r[3])
+            input_hash = hash_password(password) if password else None
+
+            # Acepta contraseña vacía o NULL
+            if stored_hash in (None, '', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'):
+                if not password or password == "":
+                    if r[3] == 'admin':
+                        return AdministradorTI(r[0], r[1], r[2], r[3])
+                    elif r[3] == 'coordinador':
+                        return CoordinadorTI(r[0], r[1], r[2], r[3])
+                    return cls(r[0], r[1], r[2], r[3])
+
+            # Caso normal con contraseña
+            if input_hash == stored_hash:
+                if r[3] == 'admin':
+                    return AdministradorTI(r[0], r[1], r[2], r[3])
+                elif r[3] == 'coordinador':
+                    return CoordinadorTI(r[0], r[1], r[2], r[3])
+                return cls(r[0], r[1], r[2], r[3])
+
+            return None
         finally:
             cur.close()
             conn.close()

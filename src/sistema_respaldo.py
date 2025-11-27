@@ -41,6 +41,33 @@ class SistemaRespaldo:
     def listar_politicas(self):
         return PoliticaBackup.listar_todos()
 
+    def listar_respaldos_por_equipo(self, equipo_nombre):
+        """Lista todos los respaldos de un equipo específico"""
+        equipo = self.buscar_equipo(equipo_nombre)
+        if equipo is None:
+            return "Equipo no encontrado."
+        
+        respaldos = Respaldo.listar_por_equipo(equipo.id)
+        if not respaldos:
+            return f"El equipo {equipo_nombre} no tiene respaldos."
+        
+        resultado = f"=== RESPALDOS DEL EQUIPO {equipo_nombre} ===\n\n"
+        for respaldo in respaldos:
+            # Obtener información del NAS
+            nas = NAS.buscar_por_id(respaldo.nas_id)
+            nas_info = f"NAS {nas.id} ({nas.direccion})" if nas else "NAS desconocido"
+            
+            # Formatear fecha
+            fecha = respaldo.fecha_inicio.strftime("%Y-%m-%d %H:%M:%S") if hasattr(respaldo.fecha_inicio, 'strftime') else str(respaldo.fecha_inicio)
+            
+            resultado += f"• Respaldo ID: {respaldo.id}\n"
+            resultado += f"  Ubicación: {nas_info}\n"
+            resultado += f"  Estado: {respaldo.estado}\n"
+            resultado += f"  Fecha: {fecha}\n"
+            resultado += "\n"
+        
+        return resultado
+
     # Operaciones de respaldo
     def respaldar_equipo(self, nombre_equipo, nas_id):
         equipo = self.buscar_equipo(nombre_equipo)
@@ -49,7 +76,10 @@ class SistemaRespaldo:
         try:
             ok = equipo.respaldar(nas_id)
             if ok:
-                return f"Respaldo creado para '{equipo.nombre}' en NAS {nas_id}."
+                # Obtener información del NAS para el mensaje
+                nas = NAS.buscar_por_id(nas_id)
+                nas_info = f"NAS {nas.id} ({nas.direccion})" if nas else f"NAS {nas_id}"
+                return f"Respaldo creado para '{equipo.nombre}' en {nas_info}."
             else:
                 return f"No se pudo respaldar '{equipo.nombre}'."
         except Exception as e:
@@ -69,16 +99,21 @@ class SistemaRespaldo:
             return f"Error al restaurar: {e}"
 
     def asignar_politica(self, nombre_equipo, politica_id, usuario):
-        if not isinstance(usuario, AdministradorTI):
+        if not hasattr(usuario, 'role') or usuario.role != 'admin':
             return "Solo administradores pueden asignar políticas."
         equipo = self.buscar_equipo(nombre_equipo)
         if equipo is None:
             return "Equipo no encontrado."
         try:
-            ok = usuario.asignarPolitica(equipo.id, politica_id)
-            if ok:
-                return f"Política {politica_id} asignada a '{equipo.nombre}'."
-            else:
-                return "No se pudo asignar la política."
+            # Actualizar directamente en la base de datos
+            from db_connection import get_conn
+            conn = get_conn()
+            cur = conn.cursor()
+            cur.execute("UPDATE equipos SET politica_id = %s WHERE id = %s", (politica_id, equipo.id))
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return f"Política {politica_id} asignada a '{equipo.nombre}'."
         except Exception as e:
             return f"Error al asignar: {e}"
