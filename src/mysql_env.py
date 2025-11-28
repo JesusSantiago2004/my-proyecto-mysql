@@ -30,7 +30,7 @@ def eliminar_tablas_existentes(connection):
     cur = connection.cursor()
     cur.execute("SET FOREIGN_KEY_CHECKS = 0;")
     
-    tablas = ['versiones_archivos', 'respaldos', 'equipos', 'politicas_backup', 'nas', 'usuarios_ti']
+    tablas = ['reportes', 'versiones_archivos', 'respaldos', 'equipos', 'politicas_backup', 'nas', 'usuarios_ti']
     for tabla in tablas:
         try:
             cur.execute(f"DROP TABLE IF EXISTS {tabla};")
@@ -46,7 +46,7 @@ def crear_tablas(connection):
 
     print("Creando tablas...")
 
-    # Tabla usuarios_ti
+    # ------------------ usuarios_ti ------------------
     cur.execute("""CREATE TABLE usuarios_ti(
         id INT AUTO_INCREMENT PRIMARY KEY,
         nombre VARCHAR(255) NOT NULL UNIQUE,
@@ -55,7 +55,7 @@ def crear_tablas(connection):
         password VARCHAR(255) NULL
     ) ENGINE=InnoDB;""")
 
-    # Tabla nas
+    # ------------------ nas ------------------
     cur.execute("""CREATE TABLE nas(
         id INT AUTO_INCREMENT PRIMARY KEY,
         direccion VARCHAR(255) NOT NULL,
@@ -64,7 +64,7 @@ def crear_tablas(connection):
         rol VARCHAR(50) DEFAULT 'principal'
     ) ENGINE=InnoDB;""")
 
-    # Tabla politicas_backup
+    # ------------------ politicas_backup ------------------
     cur.execute("""CREATE TABLE politicas_backup(
         id INT AUTO_INCREMENT PRIMARY KEY,
         frecuencia VARCHAR(50) NOT NULL,
@@ -73,7 +73,7 @@ def crear_tablas(connection):
         FOREIGN KEY (destino_nas_id) REFERENCES nas(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;""")
 
-    # Tabla equipos
+    # ------------------ equipos ------------------
     cur.execute("""CREATE TABLE equipos(
         id INT AUTO_INCREMENT PRIMARY KEY,
         id_unico VARCHAR(50) NOT NULL UNIQUE,
@@ -87,7 +87,7 @@ def crear_tablas(connection):
         FOREIGN KEY (politica_id) REFERENCES politicas_backup(id) ON DELETE SET NULL
     ) ENGINE=InnoDB;""")
 
-    # Tabla respaldos
+    # ------------------ respaldos ------------------
     cur.execute("""CREATE TABLE respaldos(
         id INT AUTO_INCREMENT PRIMARY KEY,
         equipo_id INT NOT NULL,
@@ -98,7 +98,7 @@ def crear_tablas(connection):
         FOREIGN KEY (nas_id) REFERENCES nas(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;""")
 
-    # Tabla versiones_archivos
+    # ------------------ versiones_archivos ------------------
     cur.execute("""CREATE TABLE versiones_archivos(
         id INT AUTO_INCREMENT PRIMARY KEY,
         archivo_id VARCHAR(255) NOT NULL,
@@ -109,6 +109,20 @@ def crear_tablas(connection):
         FOREIGN KEY (respaldo_id) REFERENCES respaldos(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;""")
 
+    # ------------------ reportes (NUEVA TABLA) ------------------
+    cur.execute("""CREATE TABLE reportes(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        equipo_id INT NOT NULL,
+        usuario_id INT NOT NULL,
+        titulo VARCHAR(255) NOT NULL,
+        descripcion TEXT NOT NULL,
+        tipo VARCHAR(50) DEFAULT 'problema',
+        estado VARCHAR(50) DEFAULT 'abierto',
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (equipo_id) REFERENCES equipos(id) ON DELETE CASCADE,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios_ti(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB;""")
+
     connection.commit()
     print("Tablas creadas correctamente.")
 
@@ -116,7 +130,6 @@ def insertar_nas_predefinidos(connection):
     """Inserta los NAS predefinidos del sistema"""
     cur = connection.cursor()
     
-    # NAS predefinidos con 2TB de capacidad (2 * 1024^4 bytes)
     nas_predefinidos = [
         (1, '192.168.1.100', 2 * 1024**4, 'principal'),
         (2, '192.168.1.101', 2 * 1024**4, 'secundario'),
@@ -138,7 +151,6 @@ def insertar_admin_principal(connection):
     """Inserta solo el usuario admin principal"""
     cur = connection.cursor()
     
-    # Insertar usuario admin
     cur.execute("""INSERT IGNORE INTO usuarios_ti (nombre, email, role, password) 
                VALUES ('Jesus Santiago', 'jesus@ti.com', 'admin', 
                'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');""")
@@ -168,12 +180,10 @@ def main():
         print("  - NAS 1: 192.168.1.100 (principal)")
         print("  - NAS 2: 192.168.1.101 (secundario)") 
         print("  - NAS 3: 192.168.1.102 (respaldo)")
-        print("Capacidad: 2 TB cada uno")
-        print("")
+        print("Capacidad: 2 TB cada uno\n")
         print("Usuario admin: Jesus Santiago")
-        print("Email: jesus@ti.com") 
-        print("Contraseña: (dejar vacío)")
-        print("")
+        print("Email: jesus@ti.com")
+        print("Contraseña: (dejar vacío)\n")
         print("Roles disponibles:")
         print("- admin: Acceso completo")
         print("- analista: Ver información y restaurar")

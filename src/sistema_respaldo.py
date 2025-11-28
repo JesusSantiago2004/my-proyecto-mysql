@@ -3,6 +3,7 @@ from equipo import Equipo
 from nas import NAS
 from politica_backup import PoliticaBackup
 from respaldo import Respaldo
+from reporte import Reporte   # <--- IMPORTANTE: añadido
 
 class SistemaRespaldo:
     def __init__(self):
@@ -13,16 +14,13 @@ class SistemaRespaldo:
         return UsuarioTI.crear(nombre, email, role, password)
 
     def registrar_equipo(self, nombre, tipo, usuario, area, password=None):
-        # Crear equipo sin password en el constructor
         equipo = Equipo.crear(nombre, tipo, usuario, area)
         
-        # Si se proporcionó password, actualizarlo
         if password:
             from db_connection import get_conn
             conn = get_conn()
             try:
                 cur = conn.cursor()
-                # Hash de la contraseña
                 import hashlib
                 pwd_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
                 cur.execute("UPDATE equipos SET password = %s WHERE id = %s", (pwd_hash, equipo.id))
@@ -37,19 +35,15 @@ class SistemaRespaldo:
         return equipo
 
     def registrar_nas(self, direccion, capacidad_total, rol='principal'):
-        # Verificar que no sea un NAS predefinido
         for nas_id, nas_data in NAS.NAS_PREDEFINIDOS.items():
             if nas_data["direccion"] == direccion:
                 raise ValueError(f"La dirección {direccion} está reservada para NAS predefinidos del sistema")
-        
         return NAS.crear(direccion, capacidad_total, rol)
 
     def registrar_politica(self, frecuencia, retencion, destino_nas_id):
-        # Verificar que el NAS destino existe
         nas = NAS.buscar_por_id(destino_nas_id)
         if not nas:
             raise ValueError(f"NAS con ID {destino_nas_id} no encontrado")
-        
         return PoliticaBackup.crear(frecuencia, retencion, destino_nas_id)
 
     # Búsqueda
@@ -73,7 +67,6 @@ class SistemaRespaldo:
         return PoliticaBackup.listar_todos()
 
     def listar_respaldos_por_equipo(self, equipo_nombre):
-        """Lista todos los respaldos de un equipo específico"""
         equipo = self.buscar_equipo(equipo_nombre)
         if equipo is None:
             return "Equipo no encontrado."
@@ -90,18 +83,14 @@ class SistemaRespaldo:
         resultado += f"Área: {equipo.area}\n\n"
         
         for respaldo in respaldos:
-            # Obtener información del NAS
             nas = NAS.buscar_por_id(respaldo.nas_id)
             nas_info = f"NAS {nas.id} ({nas.direccion})" if nas else "NAS desconocido"
-            
-            # Formatear fecha
             fecha = respaldo.fecha_inicio.strftime("%Y-%m-%d %H:%M:%S") if hasattr(respaldo.fecha_inicio, 'strftime') else str(respaldo.fecha_inicio)
             
             resultado += f"• Respaldo ID: {respaldo.id}\n"
             resultado += f"  Ubicación: {nas_info}\n"
             resultado += f"  Estado: {respaldo.estado}\n"
-            resultado += f"  Fecha: {fecha}\n"
-            resultado += "\n"
+            resultado += f"  Fecha: {fecha}\n\n"
         
         return resultado
 
@@ -111,7 +100,6 @@ class SistemaRespaldo:
         if equipo is None:
             return "Equipo no encontrado."
         
-        # Verificar que el NAS existe
         nas = NAS.buscar_por_id(nas_id)
         if nas is None:
             return f"NAS con ID {nas_id} no encontrado."
@@ -145,7 +133,6 @@ class SistemaRespaldo:
         if equipo is None:
             return "Equipo no encontrado."
         try:
-            # Actualizar directamente en la base de datos
             from db_connection import get_conn
             conn = get_conn()
             cur = conn.cursor()
@@ -159,7 +146,6 @@ class SistemaRespaldo:
             return f"Error al asignar: {e}"
 
     def eliminar_nas(self, nas_id, usuario):
-        """Elimina un NAS (solo admin y solo NAS personalizados)"""
         if not hasattr(usuario, 'role') or usuario.role != 'admin':
             return "Solo administradores pueden eliminar NAS."
         
@@ -175,6 +161,43 @@ class SistemaRespaldo:
             return f"NAS {nas.direccion} eliminado correctamente."
         except Exception as e:
             return f"Error al eliminar NAS: {str(e)}"
+
+    #NUEVO: Crear reporte
+    def crear_reporte(self, equipo_nombre, usuario, titulo, descripcion, tipo='problema'):
+        equipo = self.buscar_equipo(equipo_nombre)
+        if equipo is None:
+            return "Equipo no encontrado."
+        
+        try:
+            reporte = Reporte.crear(equipo.id, usuario.id, titulo, descripcion, tipo)
+            return f"Reporte creado exitosamente: {reporte.titulo}"
+        except Exception as e:
+            return f"Error al crear reporte: {str(e)}"
+
+    # Listar reportes (solo admin)
+    def listar_reportes(self, usuario):
+        if not hasattr(usuario, 'role') or usuario.role != 'admin':
+            return "Solo administradores pueden ver todos los reportes."
+        
+        try:
+            reportes = Reporte.listar_todos()
+            if not reportes:
+                return "No hay reportes en el sistema."
+            
+            resultado = "=== REPORTES DEL SISTEMA ===\n\n"
+            for r in reportes:
+                resultado += f"• Reporte #{r.id}\n"
+                resultado += f"  Equipo: {r.nombre_equipo}\n"
+                resultado += f"  Reportado por: {r.nombre_usuario} ({r.role_usuario})\n"
+                resultado += f"  Tipo: {r.tipo}\n"
+                resultado += f"  Estado: {r.estado}\n"
+                resultado += f"  Fecha: {r.fecha_creacion}\n"
+                resultado += f"  Título: {r.titulo}\n"
+                resultado += f"  Descripción: {r.descripcion}\n\n"
+            
+            return resultado
+        except Exception as e:
+            return f"Error al listar reportes: {str(e)}"
 
     def _get_connection(self):
         from db_connection import get_conn

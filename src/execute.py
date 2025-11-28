@@ -484,6 +484,55 @@ def listar_equipos_nas():
     
     crear_dialogo_simple("Equipos en NAS", campos, mostrar)
 
+# NUEVAS FUNCIONES PARA REPORTES
+def crear_reporte_equipo():
+    equipos = obtener_lista_equipos()
+    if not equipos:
+        messagebox.showwarning("Advertencia", "No hay equipos registrados")
+        return
+    
+    campos = [
+        {'tipo': 'combobox', 'name': 'equipo', 'text': 'Equipo a reportar:', 'values': equipos},
+        {'tipo': 'entry', 'name': 'titulo', 'text': 'Título del reporte:'},
+        {'tipo': 'combobox', 'name': 'tipo', 'text': 'Tipo de problema:', 'values': ['problema', 'falla', 'mejora', 'consulta']},
+        {'tipo': 'entry', 'name': 'descripcion', 'text': 'Descripción del problema:'},
+    ]
+    
+    def confirmar(valores, dialog):
+        try:
+            if not valores['equipo'] or not valores['titulo'] or not valores['descripcion']:
+                messagebox.showerror("Error", "Todos los campos son obligatorios")
+                return
+                
+            resultado = sis.crear_reporte(
+                valores['equipo'], 
+                current_user, 
+                valores['titulo'], 
+                valores['descripcion'],
+                valores['tipo']
+            )
+            messagebox.showinfo("Éxito", resultado)
+            dialog.destroy()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+    
+    crear_dialogo_simple("Crear Reporte", campos, confirmar, 400)
+
+def ver_reportes_sistema():
+    """Solo disponible para admin"""
+    if not current_user or current_user.role != 'admin':
+        messagebox.showerror("Error", "Solo administradores pueden ver todos los reportes")
+        return
+    
+    try:
+        limpiar_salida()
+        resultado = sis.listar_reportes(current_user)
+        lineas = resultado.split('\n')
+        for linea in lineas:
+            lb_output.insert(tk.END, linea)
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
 # Funciones auxiliares
 def obtener_lista_equipos():
     try:
@@ -620,6 +669,7 @@ def ajustar_menu_por_rol():
     
     # Analista: puede ver y restaurar, pero no registrar
     elif rol == 'analista':
+        menu_acciones.entryconfig("Crear reporte", state="normal")
         menu_acciones.entryconfig("Restaurar equipo", state="normal")
         menu_acciones.entryconfig("Ver usuarios", state="normal")
         menu_acciones.entryconfig("Ver equipos", state="normal")
@@ -629,8 +679,9 @@ def ajustar_menu_por_rol():
         menu_acciones.entryconfig("Ver equipos en NAS", state="normal")
         menu_acciones.entryconfig("Generar reporte", state="normal")
     
-    # Auxiliar: solo puede ver información básica
+    # Auxiliar: solo puede ver información básica y crear reportes
     elif rol == 'auxiliar':
+        menu_acciones.entryconfig("Crear reporte", state="normal")
         menu_acciones.entryconfig("Ver equipos", state="normal")
         menu_acciones.entryconfig("Ver NAS", state="normal")
         menu_acciones.entryconfig("Ver políticas", state="normal")
@@ -682,6 +733,9 @@ menu_acciones.add_command(label="Registrar política", command=registrar_politic
 menu_acciones.add_separator()
 menu_acciones.add_command(label="Respaldar equipo", command=respaldar_equipo)
 menu_acciones.add_command(label="Restaurar equipo", command=restaurar_equipo)
+menu_acciones.add_separator()
+menu_acciones.add_command(label="Crear reporte", command=crear_reporte_equipo)
+menu_acciones.add_command(label="Ver todos los reportes", command=ver_reportes_sistema)
 menu_acciones.add_separator()
 menu_acciones.add_command(label="Ver usuarios", command=listar_usuarios)
 menu_acciones.add_command(label="Ver equipos", command=listar_equipos)
