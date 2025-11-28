@@ -1,4 +1,3 @@
-# src/mysql_env.py - Base de datos limpia
 from db_connection import create_connection, close_connection
 import mysql.connector
 from mysql.connector import Error

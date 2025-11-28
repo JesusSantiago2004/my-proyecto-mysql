@@ -3,7 +3,7 @@ from equipo import Equipo
 from nas import NAS
 from politica_backup import PoliticaBackup
 from respaldo import Respaldo
-from reporte import Reporte   # <--- IMPORTANTE: añadido
+from reporte import Reporte
 
 class SistemaRespaldo:
     def __init__(self):
@@ -162,7 +162,7 @@ class SistemaRespaldo:
         except Exception as e:
             return f"Error al eliminar NAS: {str(e)}"
 
-    #NUEVO: Crear reporte
+    #Crear reporte
     def crear_reporte(self, equipo_nombre, usuario, titulo, descripcion, tipo='problema'):
         equipo = self.buscar_equipo(equipo_nombre)
         if equipo is None:

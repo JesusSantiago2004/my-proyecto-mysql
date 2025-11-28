@@ -19,6 +19,17 @@ COLOR_FONDO = "#f8f9fa"
 COLOR_TEXTO = "#2c3e50"
 COLOR_BORDE = "#dee2e6"
 
+# Decorador para requerir autenticación
+def requiere_autenticacion(func):
+    """Decorador para requerir autenticación antes de ejecutar una función"""
+    def wrapper(*args, **kwargs):
+        if current_user is None:
+            messagebox.showwarning("Acceso denegado", "Debe iniciar sesión para realizar esta acción")
+            crear_ventana_login()
+            return None
+        return func(*args, **kwargs)
+    return wrapper
+
 def centrar_ventana(ventana, ancho=1000, alto=700):
     pantalla_ancho = ventana.winfo_screenwidth()
     pantalla_alto = ventana.winfo_screenheight()
@@ -269,6 +280,7 @@ def crear_dialogo_simple(titulo, campos, callback_confirmar, ancho=350):
     return dialog
 
 # Funciones para registrar elementos
+@requiere_autenticacion
 def registrar_equipo():
     campos = [
         {'tipo': 'entry', 'name': 'nombre', 'text': 'Nombre del equipo:'},
@@ -293,6 +305,7 @@ def registrar_equipo():
     
     crear_dialogo_simple("Registrar Equipo", campos, confirmar)
 
+@requiere_autenticacion
 def registrar_nas():
     campos = [
         {'tipo': 'entry', 'name': 'direccion', 'text': 'Dirección IP:', 'default': '192.168.1.200'},
@@ -312,6 +325,7 @@ def registrar_nas():
     
     crear_dialogo_simple("Registrar NAS", campos, confirmar)
 
+@requiere_autenticacion
 def registrar_politica():
     nas_options = obtener_lista_nas()
     if not nas_options:
@@ -347,6 +361,7 @@ def registrar_politica():
     
     crear_dialogo_simple("Registrar Política", campos, confirmar)
 
+@requiere_autenticacion
 def respaldar_equipo():
     equipos = obtener_lista_equipos()
     nas_list = obtener_lista_nas()
@@ -393,6 +408,7 @@ def respaldar_equipo():
     
     crear_dialogo_simple("Respaldar Equipo", campos, confirmar)
 
+@requiere_autenticacion
 def restaurar_equipo():
     equipos = obtener_lista_equipos()
     if not equipos:
@@ -417,6 +433,7 @@ def restaurar_equipo():
     
     crear_dialogo_simple("Restaurar Equipo", campos, confirmar)
 
+@requiere_autenticacion
 def listar_respaldos_equipo():
     equipos = obtener_lista_equipos()
     if not equipos:
@@ -444,6 +461,7 @@ def listar_respaldos_equipo():
     
     crear_dialogo_simple("Ver Respaldos", campos, mostrar)
 
+@requiere_autenticacion
 def listar_equipos_nas():
     nas_list = obtener_lista_nas()
     if not nas_list:
@@ -485,6 +503,7 @@ def listar_equipos_nas():
     crear_dialogo_simple("Equipos en NAS", campos, mostrar)
 
 # NUEVAS FUNCIONES PARA REPORTES
+@requiere_autenticacion
 def crear_reporte_equipo():
     equipos = obtener_lista_equipos()
     if not equipos:
@@ -518,6 +537,7 @@ def crear_reporte_equipo():
     
     crear_dialogo_simple("Crear Reporte", campos, confirmar, 400)
 
+@requiere_autenticacion
 def ver_reportes_sistema():
     """Solo disponible para admin"""
     if not current_user or current_user.role != 'admin':
@@ -534,6 +554,7 @@ def ver_reportes_sistema():
         messagebox.showerror("Error", str(e))
 
 # Funciones auxiliares
+@requiere_autenticacion
 def obtener_lista_equipos():
     try:
         equipos = sis.listar_equipos()
@@ -542,6 +563,7 @@ def obtener_lista_equipos():
         print(f"Error al obtener equipos: {e}")
         return []
 
+@requiere_autenticacion
 def obtener_lista_nas():
     try:
         nas_list = sis.listar_nas()
@@ -553,6 +575,7 @@ def obtener_lista_nas():
         print(f"Error al obtener NAS: {e}")
         return []
 
+@requiere_autenticacion
 def obtener_lista_politicas():
     try:
         politicas = sis.listar_politicas()
@@ -564,6 +587,7 @@ def obtener_lista_politicas():
 def limpiar_salida():
     lb_output.delete(0, tk.END)
 
+@requiere_autenticacion
 def listar_usuarios():
     try:
         limpiar_salida()
@@ -577,6 +601,7 @@ def listar_usuarios():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+@requiere_autenticacion
 def listar_equipos():
     try:
         limpiar_salida()
@@ -594,6 +619,7 @@ def listar_equipos():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+@requiere_autenticacion
 def listar_nas():
     try:
         limpiar_salida()
@@ -616,6 +642,7 @@ def listar_nas():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+@requiere_autenticacion
 def listar_politicas():
     try:
         limpiar_salida()
@@ -631,6 +658,7 @@ def listar_politicas():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+@requiere_autenticacion
 def generar_reporte():
     try:
         limpiar_salida()
@@ -646,9 +674,26 @@ def salir():
         root.destroy()
         sys.exit(0)
 
+def cerrar_sesion():
+    global current_user
+    current_user = None
+    actualizar_info_usuario()
+    ajustar_menu_por_rol()
+    limpiar_salida()
+    lb_output.insert(tk.END, "Sesión cerrada. Por favor inicie sesión para continuar.")
+    messagebox.showinfo("Sesión cerrada", "Ha cerrado sesión correctamente")
+
 def ajustar_menu_por_rol():
     if current_user is None:
+        # Deshabilitar todo el menú de acciones si no hay usuario
+        for i in range(menu_acciones.index("end") + 1):
+            try:
+                menu_acciones.entryconfig(i, state="disabled")
+            except:
+                pass
         return
+    
+    rol = current_user.role
     
     # Deshabilitar todo primero
     for i in range(menu_acciones.index("end") + 1):
@@ -656,8 +701,6 @@ def ajustar_menu_por_rol():
             menu_acciones.entryconfig(i, state="disabled")
         except:
             pass
-    
-    rol = current_user.role
     
     # Admin: acceso completo
     if rol == 'admin':
@@ -721,6 +764,11 @@ menubar = tk.Menu(root, font=('Arial', 10))
 
 # Menú de Archivo
 menu_archivo = tk.Menu(menubar, tearoff=0)
+menu_archivo.add_command(label="Iniciar Sesión", command=crear_ventana_login)
+menu_archivo.add_command(label="Registrarse", command=crear_ventana_registro)
+menu_archivo.add_separator()
+menu_archivo.add_command(label="Cerrar Sesión", command=cerrar_sesion)
+menu_archivo.add_separator()
 menu_archivo.add_command(label="Salir", command=salir)
 menubar.add_cascade(label="Archivo", menu=menu_archivo)
 

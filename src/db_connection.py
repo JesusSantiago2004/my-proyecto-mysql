@@ -1,4 +1,3 @@
-# src/db_connection.py  ← VERSIÓN FINAL CORREGIDA (NO crea pool al inicio)
 import mysql.connector
 from mysql.connector import Error
 from mysql.connector import pooling
@@ -17,7 +16,7 @@ DB_CONFIG = {
     "charset": "utf8mb4",
 }
 
-pool = None  # ← NO se crea aquí
+pool = None 
 
 def init_pool():
     """Crea el pool solo cuando la base de datos ya existe"""
@@ -43,7 +42,7 @@ def get_conn():
         try:
             return pool.get_connection()
         except:
-            init_pool()  # intenta de nuevo
+            init_pool()
             if pool:
                 return pool.get_connection()
     # Si falla el pool, conexión directa
