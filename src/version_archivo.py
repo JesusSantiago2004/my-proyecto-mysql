@@ -26,7 +26,7 @@ class VersionArchivo:
             conn.close()
 
     def restaurar(self):
-        # Simular
+        # Simular restauración
         return True
 
     def __str__(self):
